@@ -11,7 +11,7 @@ export type Message = {
     content: string;
     created_at: string;
     updated_at: string;
-    is_edited: string;
+    is_edited: boolean;
 }
 
 export type MessageWithProfile = Message & {

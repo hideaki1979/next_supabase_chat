@@ -36,7 +36,7 @@ export default function SignupPage() {
             if (error) {
                 setError(error.message)
             } else {
-                setMessage('確認メールを送信しました。メールをご確認ください')
+                setMessage('アカウント作成が成功しました。')
 
                 // 1.5秒後にログイン画面へ遷移
                 setTimeout(() => {
@@ -44,7 +44,7 @@ export default function SignupPage() {
                 }, 1500)
             }
         } catch (err) {
-            setMessage(`サインアップ中にエラーが発生しました： ${err}`)
+            setError(`サインアップ中にエラーが発生しました： ${err instanceof Error ? err.message : String(err)}`)
         } finally {
             setLoading(false)
         }
@@ -130,7 +130,7 @@ export default function SignupPage() {
                     </div>
 
                     <div className="text-center">
-                        <Link href="/auth/signup" className="text-indigo-600 hover:text-indigo-400">
+                        <Link href="/auth/login" className="text-indigo-600 hover:text-indigo-400">
                             既にアカウント登録済の方（ログイン）
                         </Link>
                     </div>
