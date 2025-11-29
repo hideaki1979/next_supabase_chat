@@ -7,10 +7,11 @@ export default async function ChatPage() {
 
     const {
         data: { user },
+        error: userError,
     } = await supabase.auth.getUser()
 
 
-    if (!user) {
+    if (!user || userError) {
         redirect('/auth/login')
     }
 
@@ -20,19 +21,13 @@ export default async function ChatPage() {
         .eq('id', user.id)
         .single()
 
-    const { data: messages, error } = await supabase
+    const { data: messages } = await supabase
         .from('messages')
         .select(`
         *,
         profiles (*)
         `)
         .order('created_at', { ascending: true })
-
-    // デバッグ用ログ
-    console.log('Fetched messages:', messages)
-    console.log('Messages error:', error)
-    console.log('User ID:', user.id)
-
 
     return (
         <ChatRoom

@@ -7,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Edit2, LogOut, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
     initialMessages: MessageWithProfile[];
@@ -16,14 +16,33 @@ type Props = {
 }
 
 export default function ChatRoom({ initialMessages, currentUser, currentProfile }: Props) {
-    const [messages, setMessages] = useState<MessageWithProfile[]>(initialMessages);
-    const [newMessage, setNewMessage] = useState('');
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editContent, setEditContent] = useState('');
-    const [loading, setLoading] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const supabase = createClient()
+    const [messages, setMessages] = useState<MessageWithProfile[]>(initialMessages)
+    const [newMessage, setNewMessage] = useState('')
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editContent, setEditContent] = useState('')
+    const [loading, setLoading] = useState(false)
+    const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    const messagesEndRef = useRef<HTMLDivElement>(null)
+    const supabase = useMemo(() => createClient(), [])
     const router = useRouter()
+
+    // メッセージとプロファイル情報を取得する関数
+    const fetchMessageWithProfile = useCallback(async (messageId: string): Promise<MessageWithProfile | null> => {
+        const { data, error } = await supabase
+            .from('messages')
+            .select(`
+                *,
+                profiles (*)
+            `)
+            .eq('id', messageId)
+            .single()
+
+        if (error || !data) {
+            return null
+        }
+
+        return data as MessageWithProfile
+    }, [supabase])
 
     // リアルタイム購読
     useEffect(() => {
@@ -37,14 +56,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                     table: 'messages',
                 },
                 async (payload) => {
-                    const { data: newMessage } = await supabase
-                        .from('messages')
-                        .select(`
-                            *,
-                            profiles (*)
-                            `)
-                        .eq('id', payload.new.id)
-                        .single()
+                    const newMessage = await fetchMessageWithProfile(payload.new.id)
 
                     if (newMessage) {
                         setMessages((current) => [...current, newMessage])
@@ -59,14 +71,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                     table: 'messages',
                 },
                 async (payload) => {
-                    const { data: updatedMessage } = await supabase
-                        .from('messages')
-                        .select(`
-                        *,
-                        profiles (*)
-                        `)
-                        .eq('id', payload.new.id)
-                        .single()
+                    const updatedMessage = await fetchMessageWithProfile(payload.new.id)
 
                     if (updatedMessage) {
                         setMessages((current) =>
@@ -95,12 +100,22 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [supabase])
+    }, [supabase, fetchMessageWithProfile])
 
     // 自動スクロール
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
+
+    // エラーメッセージを自動で非表示にする
+    useEffect(() => {
+        if (errorMessage) {
+            const timer = setTimeout(() => {
+                setErrorMessage(null)
+            }, 3000)    // 3秒後に非表示
+            return () => clearTimeout(timer)
+        }
+    }, [errorMessage])
 
     // CREATE: メッセージ送信
     const handleSendMessage = async (e: React.FormEvent) => {
@@ -108,6 +123,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
         if (!newMessage.trim() || loading) return
 
         setLoading(true)
+        setErrorMessage(null)
         const { error } = await supabase
             .from('messages')
             .insert({
@@ -115,7 +131,12 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                 user_id: currentUser.id,
             })
 
-        if (!error) setNewMessage('')
+        if (error) {
+            console.error('メッセージの送信に失敗しました：', error)
+            setErrorMessage('メッセージの送信に失敗しました')
+        } else {
+            setNewMessage('')
+        }
 
         setLoading(false)
     }
@@ -125,6 +146,8 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
         if (!editContent.trim() || loading) return
 
         setLoading(true)
+        setErrorMessage(null)
+
         const { error } = await supabase
             .from('messages')
             .update({
@@ -134,7 +157,10 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
             })
             .eq('id', id)
 
-        if (!error) {
+        if (error) {
+            console.error('メッセージの編集に失敗しました：', error)
+            setErrorMessage('メッセージの編集に失敗しました。もう一度お試しください。')
+        } else {
             setEditingId(null)
             setEditContent('')
         }
@@ -146,7 +172,13 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
         if (!confirm('このメッセージを削除しますか？')) return
 
         setLoading(true)
-        await supabase.from('messages').delete().eq('id', id)
+        setErrorMessage(null)
+
+        const { error } = await supabase.from('messages').delete().eq('id', id)
+        if (error) {
+            console.error('メッセージの削除に失敗しました：', error)
+            setErrorMessage('メッセージの削除に失敗しました。もう一度お試しください。')
+        }
         setLoading(false)
     }
 
@@ -186,6 +218,21 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                     ログアウト
                 </button>
             </header>
+
+            {/* エラーメッセージ */}
+            {errorMessage && (
+                <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm">{errorMessage}</p>
+                        <button
+                            onClick={() => setErrorMessage(null)}
+                            className="text-red-700 hover:text-red-900 ml-4"
+                        >
+                            ✗
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* メッセージ一覧 */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -242,7 +289,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                                                     addSuffix: true,
                                                     locale: ja,
                                                 })}
-                                                {message.is_edited && '(編集済み）'}
+                                                {message.is_edited && '(編集済み)'}
                                             </p>
                                             {isOwn && (
                                                 <div className="flex gap-1">
