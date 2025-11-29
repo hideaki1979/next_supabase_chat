@@ -11,9 +11,10 @@ export async function GET(request: Request) {
 
         if (error) {
             // TODO: エラーをロギングする。
+            console.error('supabaseでエラーが発生しました：', error)
             return NextResponse.redirect(new URL('/auth/login', request.url))
         }
+        return NextResponse.redirect(new URL('/chat', request.url))
     }
-
-    return NextResponse.redirect(new URL('/chat', request.url))
+    return NextResponse.redirect(new URL('/auth/login', request.url))
 }

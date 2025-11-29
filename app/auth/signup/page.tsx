@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 export default function SignupPage() {
     const [email, setEmail] = useState('')
@@ -14,6 +14,21 @@ export default function SignupPage() {
     const [message, setMessage] = useState<string | null>(null)
     const router = useRouter()
     const supabase = createClient()
+
+    useEffect(() => {
+        if (!message) {
+            return;
+        }
+
+        // 1.5秒後にログイン画面に遷移
+        const timer = setTimeout(() => {
+            router.push('/auth/login')
+        }, 1500)
+
+        // クリーンアップ
+        return () => clearTimeout(timer)
+
+    }, [message, router])
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -37,11 +52,6 @@ export default function SignupPage() {
                 setError(error.message)
             } else {
                 setMessage('アカウント作成が成功しました。')
-
-                // 1.5秒後にログイン画面へ遷移
-                setTimeout(() => {
-                    router.push('/auth/login')
-                }, 1500)
             }
         } catch (err) {
             setError(`サインアップ中にエラーが発生しました： ${err instanceof Error ? err.message : String(err)}`)
