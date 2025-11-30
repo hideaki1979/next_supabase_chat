@@ -113,17 +113,17 @@ supabase-chat-app/
 
 ```mermaid
 erDiagram
-    users ||--o{ messages : "has"
-    users ||--|| profiles : "has"
+"auth.users" ||--|| profiles : "has one"
+    profiles ||--o{ messages : "has many"
 
-    users {
+    "auth.users" {
         uuid id PK
         string email
         timestamp created_at
     }
 
     profiles {
-        uuid id PK
+        uuid id PK "FK to auth.users.id"
         string username
         timestamp created_at
         timestamp updated_at
@@ -131,7 +131,7 @@ erDiagram
 
     messages {
         uuid id PK
-        uuid user_id FK
+        uuid user_id FK "FK to profiles.id"
         text content
         boolean is_edited
         timestamp created_at
