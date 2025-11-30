@@ -13,6 +13,19 @@ interface ToastProps {
     duration?: number;
 }
 
+const toastConfig = {
+    success: {
+        bgColor: 'bg-green-50 border-green-500',
+        textColor: 'text-green-700',
+        Icon: CheckCircle2,
+    },
+    error: {
+        bgColor: 'bg-red-50 border-red-500',
+        textColor: 'text-red-700',
+        Icon: XCircle,
+    }
+}
+
 export default function Toast({ message, type, isVisible, onClose, duration = 3000 }: ToastProps) {
     useEffect(() => {
         if (isVisible) {
@@ -25,23 +38,11 @@ export default function Toast({ message, type, isVisible, onClose, duration = 30
 
     if (!isVisible) return null
 
-    const toastConfig = {
-        success: {
-            bgColor: 'bg-green-50 border-green-500',
-            textColor: 'text-green-700',
-            Icon: CheckCircle2,
-        },
-        error: {
-            bgColor: 'bg-red-50 border-red-500',
-            textColor: 'text-red-700',
-            Icon: XCircle,
-        }
-    }
 
     const { bgColor, textColor, Icon } = toastConfig[type]
 
     return (
-        <div className={`${bgColor} border-l-4 ${textColor} p-4 m-4 rounded`}>
+        <div className={`${bgColor} border-l-4 ${textColor} p-4 rounded`}>
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Icon className={`w-5 h-5`} />
