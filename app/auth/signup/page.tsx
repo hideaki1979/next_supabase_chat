@@ -4,7 +4,7 @@ import Toast from "@/app/components/Toast"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 export default function SignupPage() {
     const [email, setEmail] = useState('')
@@ -13,11 +13,14 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [message, setMessage] = useState<string | null>(null)
+    const [signupCompleted, setSignupCompleted] = useState(false)
     const router = useRouter()
     const supabase = createClient()
+    const handleCLoseError = useCallback(() => setError(null), [])
+    const handleCLoseMessage = useCallback(() => setMessage(null), [])
 
     useEffect(() => {
-        if (!message) {
+        if (!signupCompleted) {
             return;
         }
 
@@ -36,6 +39,7 @@ export default function SignupPage() {
         setLoading(true)
         setError(null)
         setMessage(null)
+        setSignupCompleted(false)
 
         try {
             const { error } = await supabase.auth.signUp({
@@ -53,6 +57,7 @@ export default function SignupPage() {
                 setError(error.message)
             } else {
                 setMessage('アカウント作成が成功しました。')
+                setSignupCompleted(true)
             }
         } catch (err) {
             setError(`サインアップ中にエラーが発生しました： ${err instanceof Error ? err.message : String(err)}`)
@@ -75,13 +80,13 @@ export default function SignupPage() {
                     message={error || ''}
                     type="error"
                     isVisible={!!error}
-                    onClose={() => setError(null)}
+                    onClose={handleCLoseError}
                 />
                 <Toast
                     message={message || ''}
                     type="success"
                     isVisible={!!message}
-                    onClose={() => setMessage(null)}
+                    onClose={handleCLoseMessage}
                 />
 
                 <form onSubmit={handleSignup} className="mt-8 space-y-8">

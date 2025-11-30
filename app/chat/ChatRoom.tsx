@@ -7,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Edit2, LogOut, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Toast from "../components/Toast";
 
 type Props = {
@@ -25,6 +25,8 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
     const [successMessage, setSuccessMessage] = useState<string | null>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const handleCloseError = useCallback(() => setErrorMessage(null), [])
+    const handleCloseMessage = useCallback(() => setSuccessMessage(null), [])
     const supabase = useMemo(() => createClient(), [])
     const router = useRouter()
 
@@ -238,7 +240,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                 message={errorMessage || ''}
                 type="error"
                 isVisible={!!errorMessage}
-                onClose={() => setErrorMessage(null)}
+                onClose={handleCloseError}
             />
 
             {/* 成功メッセージ */}
@@ -246,7 +248,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                 message={successMessage || ''}
                 type="success"
                 isVisible={!!successMessage}
-                onClose={() => setSuccessMessage(null)}
+                onClose={handleCloseMessage}
             />
 
             {/* メッセージ一覧 */}
