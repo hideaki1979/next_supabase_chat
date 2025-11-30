@@ -1,13 +1,13 @@
 'use client'
 
 import { createClient } from "@/lib/supabase/client";
-import { MessageWithProfile, Profile } from "@/types/database"
+import { Message, MessageWithProfile, Profile } from "@/types/database"
 import { User } from "@supabase/supabase-js";
 import { formatDistanceToNow } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Edit2, LogOut, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
     initialMessages: MessageWithProfile[];
@@ -26,24 +26,6 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
     const supabase = useMemo(() => createClient(), [])
     const router = useRouter()
 
-    // メッセージとプロファイル情報を取得する関数
-    const fetchMessageWithProfile = useCallback(async (messageId: string): Promise<MessageWithProfile | null> => {
-        const { data, error } = await supabase
-            .from('messages')
-            .select(`
-                *,
-                profiles (*)
-            `)
-            .eq('id', messageId)
-            .single()
-
-        if (error || !data) {
-            return null
-        }
-
-        return data as MessageWithProfile
-    }, [supabase])
-
     // リアルタイム購読
     useEffect(() => {
         const channel = supabase
@@ -56,10 +38,22 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                     table: 'messages',
                 },
                 async (payload) => {
-                    const newMessage = await fetchMessageWithProfile(payload.new.id)
+                    // payload.new には新しいメッセージのデータが含まれている
+                    const newMessage = payload.new as Message
 
-                    if (newMessage) {
-                        setMessages((current) => [...current, newMessage])
+                    // プロファイル情報のみを取得
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', newMessage.user_id)
+                        .single()
+
+                    if (profile) {
+                        const messageWithProfile: MessageWithProfile = {
+                            ...newMessage,
+                            profiles: profile as Profile
+                        }
+                        setMessages((current) => [...current, messageWithProfile])
                     }
                 }
             )
@@ -71,12 +65,24 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                     table: 'messages',
                 },
                 async (payload) => {
-                    const updatedMessage = await fetchMessageWithProfile(payload.new.id)
+                    // payload.new には更新されたメッセージのデータが含まれている
+                    const updatedMessage = payload.new as Message
 
-                    if (updatedMessage) {
+                    // プロファイル情報のみを取得
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', updatedMessage.user_id)
+                        .single()
+
+                    if (profile) {
+                        const messageWithProfile: MessageWithProfile = {
+                            ...updatedMessage,
+                            profiles: profile as Profile
+                        }
                         setMessages((current) =>
                             current.map((msg) =>
-                                msg.id === updatedMessage.id ? updatedMessage : msg
+                                msg.id === messageWithProfile.id ? messageWithProfile : msg
                             )
                         )
                     }
@@ -100,7 +106,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [supabase, fetchMessageWithProfile])
+    }, [supabase])
 
     // 自動スクロール
     useEffect(() => {
@@ -124,21 +130,24 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
 
         setLoading(true)
         setErrorMessage(null)
-        const { error } = await supabase
-            .from('messages')
-            .insert({
-                content: newMessage.trim(),
-                user_id: currentUser.id,
-            })
 
-        if (error) {
-            console.error('メッセージの送信に失敗しました：', error)
-            setErrorMessage('メッセージの送信に失敗しました')
-        } else {
-            setNewMessage('')
+        try {
+            const { error } = await supabase
+                .from('messages')
+                .insert({
+                    content: newMessage.trim(),
+                    user_id: currentUser.id,
+                })
+
+            if (error) {
+                console.error('メッセージの送信に失敗しました：', error)
+                setErrorMessage('メッセージの送信に失敗しました')
+            } else {
+                setNewMessage('')
+            }
+        } finally {
+            setLoading(false)
         }
-
-        setLoading(false)
     }
 
     // UPDATE: メッセージ編集
@@ -148,23 +157,26 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
         setLoading(true)
         setErrorMessage(null)
 
-        const { error } = await supabase
-            .from('messages')
-            .update({
-                content: editContent.trim(),
-                is_edited: true,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('id', id)
+        try {
+            const { error } = await supabase
+                .from('messages')
+                .update({
+                    content: editContent.trim(),
+                    is_edited: true,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', id)
 
-        if (error) {
-            console.error('メッセージの編集に失敗しました：', error)
-            setErrorMessage('メッセージの編集に失敗しました。もう一度お試しください。')
-        } else {
-            setEditingId(null)
-            setEditContent('')
+            if (error) {
+                console.error('メッセージの編集に失敗しました：', error)
+                setErrorMessage('メッセージの編集に失敗しました。もう一度お試しください。')
+            } else {
+                setEditingId(null)
+                setEditContent('')
+            }
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     // DELETE: メッセージ削除
@@ -174,12 +186,15 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
         setLoading(true)
         setErrorMessage(null)
 
-        const { error } = await supabase.from('messages').delete().eq('id', id)
-        if (error) {
-            console.error('メッセージの削除に失敗しました：', error)
-            setErrorMessage('メッセージの削除に失敗しました。もう一度お試しください。')
+        try {
+            const { error } = await supabase.from('messages').delete().eq('id', id)
+            if (error) {
+                console.error('メッセージの削除に失敗しました：', error)
+                setErrorMessage('メッセージの削除に失敗しました。もう一度お試しください。')
+            }
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     const startEdit = (message: MessageWithProfile) => {
@@ -260,7 +275,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                                             value={editContent}
                                             onChange={(e) => setEditContent(e.target.value)}
                                             rows={3}
-                                            className="w-full p-2 text-sm border rounded text-white"
+                                            className="w-full p-2 text-sm border rounded text-gray-800"
                                         />
                                         <div className="flex gap-2">
                                             <button

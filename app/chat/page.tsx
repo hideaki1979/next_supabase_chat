@@ -28,6 +28,7 @@ export default async function ChatPage() {
         profiles (*)
         `)
         .order('created_at', { ascending: true })
+        .limit(30)
 
     return (
         <ChatRoom
