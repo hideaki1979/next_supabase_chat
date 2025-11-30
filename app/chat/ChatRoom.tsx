@@ -7,7 +7,8 @@ import { formatDistanceToNow } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Edit2, LogOut, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Toast from "../components/Toast";
 
 type Props = {
     initialMessages: MessageWithProfile[];
@@ -22,7 +23,10 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
     const [editContent, setEditContent] = useState('')
     const [loading, setLoading] = useState(false)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    const [successMessage, setSuccessMessage] = useState<string | null>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const handleCloseError = useCallback(() => setErrorMessage(null), [])
+    const handleCloseMessage = useCallback(() => setSuccessMessage(null), [])
     const supabase = useMemo(() => createClient(), [])
     const router = useRouter()
 
@@ -113,16 +117,6 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
-    // エラーメッセージを自動で非表示にする
-    useEffect(() => {
-        if (errorMessage) {
-            const timer = setTimeout(() => {
-                setErrorMessage(null)
-            }, 3000)    // 3秒後に非表示
-            return () => clearTimeout(timer)
-        }
-    }, [errorMessage])
-
     // CREATE: メッセージ送信
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -130,6 +124,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
 
         setLoading(true)
         setErrorMessage(null)
+        setSuccessMessage(null)
 
         try {
             const { error } = await supabase
@@ -143,6 +138,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                 console.error('メッセージの送信に失敗しました：', error)
                 setErrorMessage('メッセージの送信に失敗しました')
             } else {
+                setSuccessMessage('メッセージの送信に成功しました。')
                 setNewMessage('')
             }
         } finally {
@@ -156,6 +152,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
 
         setLoading(true)
         setErrorMessage(null)
+        setSuccessMessage(null)
 
         try {
             const { error } = await supabase
@@ -173,6 +170,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
             } else {
                 setEditingId(null)
                 setEditContent('')
+                setSuccessMessage('メッセージの編集に成功しました。')
             }
         } finally {
             setLoading(false)
@@ -185,12 +183,15 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
 
         setLoading(true)
         setErrorMessage(null)
+        setSuccessMessage(null)
 
         try {
             const { error } = await supabase.from('messages').delete().eq('id', id)
             if (error) {
                 console.error('メッセージの削除に失敗しました：', error)
                 setErrorMessage('メッセージの削除に失敗しました。もう一度お試しください。')
+            } else {
+                setSuccessMessage('メッセージの削除に成功しました。')
             }
         } finally {
             setLoading(false)
@@ -235,19 +236,20 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
             </header>
 
             {/* エラーメッセージ */}
-            {errorMessage && (
-                <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded">
-                    <div className="flex items-center justify-between">
-                        <p className="text-sm">{errorMessage}</p>
-                        <button
-                            onClick={() => setErrorMessage(null)}
-                            className="text-red-700 hover:text-red-900 ml-4"
-                        >
-                            ✗
-                        </button>
-                    </div>
-                </div>
-            )}
+            <Toast
+                message={errorMessage || ''}
+                type="error"
+                isVisible={!!errorMessage}
+                onClose={handleCloseError}
+            />
+
+            {/* 成功メッセージ */}
+            <Toast
+                message={successMessage || ''}
+                type="success"
+                isVisible={!!successMessage}
+                onClose={handleCloseMessage}
+            />
 
             {/* メッセージ一覧 */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -275,7 +277,7 @@ export default function ChatRoom({ initialMessages, currentUser, currentProfile 
                                             value={editContent}
                                             onChange={(e) => setEditContent(e.target.value)}
                                             rows={3}
-                                            className="w-full p-2 text-sm border rounded text-gray-800"
+                                            className="w-full p-2 text-sm border rounded text-white"
                                         />
                                         <div className="flex gap-2">
                                             <button

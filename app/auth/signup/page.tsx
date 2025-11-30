@@ -1,9 +1,10 @@
 'use client'
 
+import Toast from "@/app/components/Toast"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 export default function SignupPage() {
     const [email, setEmail] = useState('')
@@ -12,29 +13,33 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [message, setMessage] = useState<string | null>(null)
+    const [signupCompleted, setSignupCompleted] = useState(false)
     const router = useRouter()
     const supabase = createClient()
+    const handleCloseError = useCallback(() => setError(null), [])
+    const handleCloseMessage = useCallback(() => setMessage(null), [])
 
     useEffect(() => {
-        if (!message) {
+        if (!signupCompleted) {
             return;
         }
 
-        // 1.5秒後にログイン画面に遷移
+        // Toastが表示されている間（3秒）を見せてから、少し余裕を持ってログイン画面に遷移
         const timer = setTimeout(() => {
             router.push('/auth/login')
-        }, 1500)
+        }, 4000) // Toastの3秒 + 1秒の余裕
 
         // クリーンアップ
         return () => clearTimeout(timer)
 
-    }, [message, router])
+    }, [signupCompleted, router])
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
         setError(null)
         setMessage(null)
+        setSignupCompleted(false)
 
         try {
             const { error } = await supabase.auth.signUp({
@@ -52,6 +57,7 @@ export default function SignupPage() {
                 setError(error.message)
             } else {
                 setMessage('アカウント作成が成功しました。')
+                setSignupCompleted(true)
             }
         } catch (err) {
             setError(`サインアップ中にエラーが発生しました： ${err instanceof Error ? err.message : String(err)}`)
@@ -69,17 +75,21 @@ export default function SignupPage() {
                         アカウント作成
                     </h2>
                 </div>
+
+                <Toast
+                    message={error || ''}
+                    type="error"
+                    isVisible={!!error}
+                    onClose={handleCloseError}
+                />
+                <Toast
+                    message={message || ''}
+                    type="success"
+                    isVisible={!!message}
+                    onClose={handleCloseMessage}
+                />
+
                 <form onSubmit={handleSignup} className="mt-8 space-y-8">
-                    {error && (
-                        <div>
-                            <p>{error}</p>
-                        </div>
-                    )}
-                    {message && (
-                        <div>
-                            <p>{message}</p>
-                        </div>
-                    )}
                     <div className="space-y-4">
                         <div>
                             <label htmlFor="username" className="sr-only">
