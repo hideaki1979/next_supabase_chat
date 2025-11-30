@@ -16,8 +16,8 @@ export default function SignupPage() {
     const [signupCompleted, setSignupCompleted] = useState(false)
     const router = useRouter()
     const supabase = createClient()
-    const handleCLoseError = useCallback(() => setError(null), [])
-    const handleCLoseMessage = useCallback(() => setMessage(null), [])
+    const handleCloseError = useCallback(() => setError(null), [])
+    const handleCloseMessage = useCallback(() => setMessage(null), [])
 
     useEffect(() => {
         if (!signupCompleted) {
@@ -32,7 +32,7 @@ export default function SignupPage() {
         // クリーンアップ
         return () => clearTimeout(timer)
 
-    }, [message, router])
+    }, [signupCompleted, router])
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -80,13 +80,13 @@ export default function SignupPage() {
                     message={error || ''}
                     type="error"
                     isVisible={!!error}
-                    onClose={handleCLoseError}
+                    onClose={handleCloseError}
                 />
                 <Toast
                     message={message || ''}
                     type="success"
                     isVisible={!!message}
-                    onClose={handleCLoseMessage}
+                    onClose={handleCloseMessage}
                 />
 
                 <form onSubmit={handleSignup} className="mt-8 space-y-8">
