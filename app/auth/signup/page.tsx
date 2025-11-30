@@ -1,5 +1,6 @@
 'use client'
 
+import Toast from "@/app/components/Toast"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -20,10 +21,10 @@ export default function SignupPage() {
             return;
         }
 
-        // 1.5秒後にログイン画面に遷移
+        // Toastが表示されている間（3秒）を見せてから、少し余裕を持ってログイン画面に遷移
         const timer = setTimeout(() => {
             router.push('/auth/login')
-        }, 1500)
+        }, 4000) // Toastの3秒 + 1秒の余裕
 
         // クリーンアップ
         return () => clearTimeout(timer)
@@ -69,17 +70,21 @@ export default function SignupPage() {
                         アカウント作成
                     </h2>
                 </div>
+
+                <Toast
+                    message={error || ''}
+                    type="error"
+                    isVisible={!!error}
+                    onClose={() => setError(null)}
+                />
+                <Toast
+                    message={message || ''}
+                    type="success"
+                    isVisible={!!message}
+                    onClose={() => setMessage(null)}
+                />
+
                 <form onSubmit={handleSignup} className="mt-8 space-y-8">
-                    {error && (
-                        <div>
-                            <p>{error}</p>
-                        </div>
-                    )}
-                    {message && (
-                        <div>
-                            <p>{message}</p>
-                        </div>
-                    )}
                     <div className="space-y-4">
                         <div>
                             <label htmlFor="username" className="sr-only">
