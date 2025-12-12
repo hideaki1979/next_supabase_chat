@@ -218,6 +218,7 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+SET search_path = pg_catalog, pg_temp;
 
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
@@ -231,12 +232,6 @@ CREATE TABLE messages (
   is_edited BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    -- 外部キー制約
-  CONSTRAINT messages_user_id_auth_fkey 
-    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
-  CONSTRAINT messages_user_id_profiles_fkey 
-    FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
 
 -- Row Level Security (RLS) の有効化
