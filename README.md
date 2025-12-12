@@ -200,9 +200,29 @@ Supabase ダッシュボードの SQL Editor で以下を実行：
 CREATE TABLE profiles (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
   username TEXT,
+  avatar_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- 新規ユーザー登録時に自動でプロフィール作成
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, username, avatar_url)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+    NEW.raw_user_meta_data->>'avatar_url'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+SET search_path = pg_catalog, pg_temp;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- messagesテーブルの作成
 CREATE TABLE messages (
@@ -211,7 +231,7 @@ CREATE TABLE messages (
   content TEXT NOT NULL,
   is_edited BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 );
 
 -- Row Level Security (RLS) の有効化
@@ -244,8 +264,13 @@ CREATE POLICY "Users can delete own messages"
   ON messages FOR DELETE
   USING (auth.uid() = user_id);
 
+-- インデックス作成
+CREATE INDEX messages_created_at_idx ON messages(created_at DESC);
+CREATE INDEX messages_user_id_idx ON messages(user_id);
+
 -- リアルタイムの有効化
 ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
 ```
 
 ### 5. 認証設定
