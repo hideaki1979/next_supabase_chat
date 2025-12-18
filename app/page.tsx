@@ -42,8 +42,8 @@ export default async function HomePage() {
                 "リアルタイムメッセージ",
                 "CRUD操作（作成・編集・削除）",
                 "Row Level Security"
-              ].map((feature, index) => (
-                <div key={index}
+              ].map((feature) => (
+                <div key={feature}
                   className="flex items-center gap-3 p-4 rounded-xl bg-linear-to-r from-indigo-100 to-blue-50 border border-indigo-200 hover:shadow-lg transition-all duration-300 hover:scale-110"
                 >
                   <div className="shrink-0 w-6 h-6 bg-linear-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center">
